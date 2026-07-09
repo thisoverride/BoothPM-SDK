@@ -56,7 +56,16 @@ export default class ProductService extends BaseService {
 
     const variations = wsData.variations || [];
     const downloadable = variations[0]?.downloadable || {};
-    const noMusics: Downloadable[] | null = (downloadable.no_musics as Downloadable[]) ?? null;
+    const rawDownloadableFiles: any[] | undefined = downloadable.no_musics;
+    const noMusics: Downloadable[] | null = rawDownloadableFiles
+      ? rawDownloadableFiles.map((file: any): Downloadable => ({
+        fileName: file.file_name,
+        fileExtension: file.file_extension,
+        name: file.name,
+        fileSize: file.file_size,
+        url: file.url
+      }))
+      : null;
     const cleanedDescription = wsData.description.replace(/\n/g, ' ');
 
     const boothProduct = new BoothProductDto(

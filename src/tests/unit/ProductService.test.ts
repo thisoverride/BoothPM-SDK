@@ -158,11 +158,13 @@ describe('ProductService.getProduct', () => {
       shop: { name: 'HoneyRosy', subdomain: 'honeyrosy', thumbnail_url: 'thumb.jpg', url: 'https://honeyrosy.booth.pm' },
       is_adult: false,
       wish_lists_count: 10415,
+      // booth.pm's real API returns snake_case keys here (verified against
+      // the live endpoint), not the SDK's camelCase Downloadable shape.
       variations: [
         {
           downloadable: {
             no_musics: [
-              { fileName: 'Pastel', fileExtension: '.zip', name: 'Pastel.zip', fileSize: '3.92 MB', url: 'https://booth.pm/downloadables/1' }
+              { file_name: 'Pastel', file_extension: '.zip', name: 'Pastel.zip', file_size: '3.92 MB', url: 'https://booth.pm/downloadables/1' }
             ]
           }
         }
