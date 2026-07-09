@@ -115,13 +115,18 @@ await booth.disconnect(); // セッションを破棄し、以降は未認証状
 
 ### `loginWithCredentials()` (上級者向け・非推奨)
 
-メールアドレスとパスワードを直接渡して自動化ブラウザ（[SeleniumBase](https://github.com/seleniumbase/SeleniumBase)）でログインする`loginWithCredentials()`も存在しますが、**`login()`とは性質が大きく異なります**：
+メールアドレスとパスワードを直接渡して自動化ブラウザ（[puppeteer-extra](https://github.com/berstend/puppeteer-extra) + ステルスプラグイン）でログインする`loginWithCredentials()`も存在しますが、**`login()`とは性質が大きく異なります**：
 
-- SDKがあなたのパスワードを（メモリ上のみ、Pythonサブプロセスの標準入力経由で）扱います。ディスクへの書き込みやコマンドライン引数への受け渡しは行いません。
+- SDKがあなたのパスワードを（メモリ上のみで）扱います。ディスクへの書き込みは行いません。
 - pixivのログインページにはCloudflareとreCAPTCHA Enterpriseによるボット対策が確認されており、この関数はそれを回避するステルスモードで自動入力を行います。これはpixivの利用規約に抵触する可能性があり、アカウントが制限される場合があります。
 - CAPTCHAが検出された場合は、それを突破しようとせず明確なエラーで失敗します。
+- デフォルトはヘッドレス実行です（`headless: false`でブラウザを表示可能）。
 
-特別な理由がない限り`login()`を使用してください。使う場合はPython 3と`pip install seleniumbase`が別途必要です。
+特別な理由がない限り`login()`を使用してください。使う場合は追加のオプション依存関係が必要です：
+
+```bash
+npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth
+```
 
 ```jsx
 import { loginWithCredentials } from 'booth-pm-sdk';

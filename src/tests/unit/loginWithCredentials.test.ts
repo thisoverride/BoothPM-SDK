@@ -1,38 +1,30 @@
-import { EventEmitter } from 'events';
+export {};
 
-interface FakeChild extends EventEmitter {
-  stdout: EventEmitter;
-  stderr: EventEmitter;
-  stdin: { write: jest.Mock; end: jest.Mock };
+function makeCookie (name: string, value: string, domain: string): { name: string; value: string; domain: string } {
+  return { name, value, domain };
 }
 
-function makeFakeChild (): { child: FakeChild; stdinWrite: jest.Mock } {
-  const child = new EventEmitter() as FakeChild;
-  child.stdout = new EventEmitter();
-  child.stderr = new EventEmitter();
-  const stdinWrite = jest.fn();
-  child.stdin = { write: stdinWrite, end: jest.fn() };
-  return { child, stdinWrite };
+function makePage (overrides: Record<string, any> = {}): Record<string, any> {
+  return {
+    goto: jest.fn().mockResolvedValue(undefined),
+    click: jest.fn().mockResolvedValue(undefined),
+    waitForNavigation: jest.fn().mockResolvedValue(undefined),
+    waitForSelector: jest.fn().mockResolvedValue(undefined),
+    type: jest.fn().mockResolvedValue(undefined),
+    keyboard: { press: jest.fn().mockResolvedValue(undefined) },
+    url: jest.fn().mockReturnValue('https://booth.pm/users/auth/pixiv/callback'),
+    $: jest.fn().mockResolvedValue(null),
+    cookies: jest.fn().mockResolvedValue([]),
+    ...overrides
+  };
 }
 
-/**
- * Builds a `spawn` mock that returns `child` synchronously (as the real
- * child_process.spawn does) but only fires the given events on the next
- * tick - after loginWithCredentials() has finished synchronously
- * attaching its listeners, mirroring how a real subprocess would never
- * emit before the caller has had a chance to listen.
- */
-function spawnReturning (child: FakeChild, fireEvents: () => void): jest.Mock {
-  return jest.fn().mockImplementation(() => {
-    setImmediate(fireEvents);
-    return child;
-  });
-}
-
-interface Rig {
+interface CredentialsTestRig {
   loginWithCredentials: typeof import('../../lib/core/auth/loginWithCredentials').loginWithCredentials;
   sessionCache: typeof import('../../lib/core/auth/SessionCache');
-  spawn: jest.Mock;
+  launch: jest.Mock;
+  close: jest.Mock;
+  use: jest.Mock;
 }
 
 /**
@@ -41,10 +33,9 @@ interface Rig {
  * the analogous helper in login.test.ts for why a plain top-level import
  * would go stale after jest.resetModules().
  */
-async function setup (spawn: jest.Mock): Promise<Rig> {
+async function setup (page: Record<string, any>, extraFactory?: () => unknown): Promise<CredentialsTestRig> {
   jest.resetModules();
 
-  jest.doMock('child_process', () => ({ spawn }));
   jest.doMock('../../lib/core/auth/SessionCache', () => ({
     DEFAULT_SESSION_CACHE_PATH: '/fake/home/.booth-pm-sdk/session.json',
     readCachedCookies: jest.fn().mockResolvedValue(null),
@@ -52,94 +43,131 @@ async function setup (spawn: jest.Mock): Promise<Rig> {
     clearCachedCookies: jest.fn().mockResolvedValue(undefined)
   }));
 
+  const close = jest.fn().mockResolvedValue(undefined);
+  const newPage = jest.fn().mockResolvedValue(page);
+  const launch = jest.fn().mockResolvedValue({ newPage, close });
+  const use = jest.fn();
+
+  jest.doMock('puppeteer-extra', () => ({ __esModule: true, default: { launch, use } }), { virtual: true });
+  jest.doMock('puppeteer-extra-plugin-stealth', () => ({ __esModule: true, default: extraFactory ?? (() => ({})) }), { virtual: true });
+
   const sessionCache = await import('../../lib/core/auth/SessionCache');
   const mod = await import('../../lib/core/auth/loginWithCredentials');
 
-  return { loginWithCredentials: mod.loginWithCredentials, sessionCache, spawn };
+  return { loginWithCredentials: mod.loginWithCredentials, sessionCache, launch, close, use };
 }
 
 describe('loginWithCredentials()', () => {
   afterEach(() => {
-    jest.dontMock('child_process');
+    jest.dontMock('puppeteer-extra');
+    jest.dontMock('puppeteer-extra-plugin-stealth');
     jest.dontMock('../../lib/core/auth/SessionCache');
   });
 
-  it('returns the cached session without spawning python when one exists', async () => {
-    const spawn = jest.fn();
-    const { loginWithCredentials, sessionCache } = await setup(spawn);
+  it('returns the cached session without launching a browser when one exists', async () => {
+    const { loginWithCredentials, sessionCache, launch } = await setup(makePage());
     (sessionCache.readCachedCookies as jest.Mock).mockResolvedValue({ _plaza_session: 'cached' });
 
     const result = await loginWithCredentials({ email: 'a@b.com', password: 'x' });
 
     expect(result).toEqual({ _plaza_session: 'cached' });
-    expect(spawn).not.toHaveBeenCalled();
+    expect(launch).not.toHaveBeenCalled();
   });
 
-  it('sends credentials over stdin (never as argv) and resolves with the printed cookies', async () => {
-    const { child, stdinWrite } = makeFakeChild();
-    const spawn = spawnReturning(child, () => {
-      child.stdout.emit('data', Buffer.from('{"_plaza_session":"abc"}\n'));
-      child.emit('close', 0);
+  it('applies the stealth plugin, runs headless by default, types the credentials and caches the resulting booth.pm cookies', async () => {
+    const page = makePage({
+      cookies: jest.fn().mockResolvedValue([
+        makeCookie('_plaza_session', 'abc', '.booth.pm'),
+        makeCookie('unrelated', 'xyz', '.some-other-site.com')
+      ])
     });
-    const { loginWithCredentials, sessionCache } = await setup(spawn);
+    const { loginWithCredentials, sessionCache, launch, use } = await setup(page);
 
     const result = await loginWithCredentials({ email: 'a@b.com', password: 'secret' });
 
-    for (const arg of spawn.mock.calls[0]) {
-      expect(JSON.stringify(arg)).not.toContain('secret');
-    }
-    expect(stdinWrite).toHaveBeenCalledWith(JSON.stringify({ email: 'a@b.com', password: 'secret' }) + '\n');
+    expect(use).toHaveBeenCalled();
+    expect(launch).toHaveBeenCalledWith(expect.objectContaining({ headless: true }));
+    expect(page.goto).toHaveBeenCalledWith('https://booth.pm/users/sign_in', expect.anything());
+    expect(page.click).toHaveBeenCalledWith('form[action="/users/auth/pixiv"] input[type="submit"]');
+    expect(page.type).toHaveBeenCalledWith(expect.stringContaining('username'), 'a@b.com', expect.anything());
+    expect(page.type).toHaveBeenCalledWith(expect.stringContaining('current-password'), 'secret', expect.anything());
     expect(result).toEqual({ _plaza_session: 'abc' });
     expect(sessionCache.writeCachedCookies).toHaveBeenCalledWith({ _plaza_session: 'abc' }, undefined);
   });
 
-  it('rejects with the script-reported error (e.g. CAPTCHA detected) without retrying to solve it', async () => {
-    const { child } = makeFakeChild();
-    const spawn = spawnReturning(child, () => {
-      child.stdout.emit('data', Buffer.from('{"error":"pixiv presented a CAPTCHA challenge."}\n'));
-      child.emit('close', 1);
-    });
-    const { loginWithCredentials } = await setup(spawn);
+  it('respects headless: false when explicitly requested', async () => {
+    const page = makePage({ cookies: jest.fn().mockResolvedValue([makeCookie('s', 'v', 'booth.pm')]) });
+    const { loginWithCredentials, launch } = await setup(page);
 
-    await expect(loginWithCredentials({ email: 'a@b.com', password: 'x' }))
-      .rejects.toThrow('pixiv presented a CAPTCHA challenge.');
+    await loginWithCredentials({ email: 'a@b.com', password: 'x' }, { headless: false });
+
+    expect(launch).toHaveBeenCalledWith(expect.objectContaining({ headless: false }));
   });
 
-  it('gives an actionable error when the seleniumbase Python package is missing', async () => {
-    const { child } = makeFakeChild();
-    const spawn = spawnReturning(child, () => {
-      child.stderr.emit('data', Buffer.from('ModuleNotFoundError: No module named \'seleniumbase\'\n'));
-      child.emit('close', 1);
+  it('rejects with a clear error and does not attempt to solve a detected CAPTCHA', async () => {
+    const page = makePage({
+      url: jest.fn().mockReturnValue('https://accounts.pixiv.net/login'),
+      $: jest.fn().mockResolvedValue({})
     });
-    const { loginWithCredentials } = await setup(spawn);
+    const { loginWithCredentials, close } = await setup(page);
 
-    await expect(loginWithCredentials({ email: 'a@b.com', password: 'x' }))
-      .rejects.toThrow('pip install seleniumbase');
+    await expect(loginWithCredentials({ email: 'a@b.com', password: 'x' }, { timeoutMs: 2000 }))
+      .rejects.toThrow('pixiv presented a CAPTCHA challenge');
+    expect(close).toHaveBeenCalled();
   });
 
-  it('gives an actionable error when python3 itself cannot be spawned', async () => {
-    const { child } = makeFakeChild();
-    const spawn = spawnReturning(child, () => {
-      child.emit('error', new Error('spawn python3 ENOENT'));
-    });
-    const { loginWithCredentials } = await setup(spawn);
+  it('rejects when the login never reaches booth.pm and no CAPTCHA was detected', async () => {
+    const page = makePage({ url: jest.fn().mockReturnValue('https://accounts.pixiv.net/login') });
+    const { loginWithCredentials, close } = await setup(page);
 
-    await expect(loginWithCredentials({ email: 'a@b.com', password: 'x' }))
-      .rejects.toThrow('requires Python 3 and SeleniumBase installed');
+    await expect(loginWithCredentials({ email: 'a@b.com', password: 'x' }, { timeoutMs: 1000 }))
+      .rejects.toThrow('Timed out waiting for the login to complete.');
+    expect(close).toHaveBeenCalled();
   });
 
-  it('ignores the cache and spawns python when forceRelogin is set', async () => {
-    const { child } = makeFakeChild();
-    const spawn = spawnReturning(child, () => {
-      child.stdout.emit('data', Buffer.from('{"_plaza_session":"fresh"}\n'));
-      child.emit('close', 0);
-    });
-    const { loginWithCredentials, sessionCache } = await setup(spawn);
+  it('rejects when the login completes but no booth.pm cookies were produced', async () => {
+    const page = makePage({ cookies: jest.fn().mockResolvedValue([makeCookie('unrelated', 'xyz', '.some-other-site.com')]) });
+    const { loginWithCredentials, close } = await setup(page);
+
+    await expect(loginWithCredentials({ email: 'a@b.com', password: 'x' }))
+      .rejects.toThrow('Login did not produce any booth.pm session cookies.');
+    expect(close).toHaveBeenCalled();
+  });
+
+  it('closes the browser even when a step throws', async () => {
+    const page = makePage({ click: jest.fn().mockRejectedValue(new Error('no such button')) });
+    const { loginWithCredentials, close } = await setup(page);
+
+    await expect(loginWithCredentials({ email: 'a@b.com', password: 'x' })).rejects.toThrow('no such button');
+    expect(close).toHaveBeenCalled();
+  });
+
+  it('gives an actionable error when puppeteer-extra is not installed', async () => {
+    jest.resetModules();
+    jest.doMock('../../lib/core/auth/SessionCache', () => ({
+      DEFAULT_SESSION_CACHE_PATH: '/fake/home/.booth-pm-sdk/session.json',
+      readCachedCookies: jest.fn().mockResolvedValue(null),
+      writeCachedCookies: jest.fn().mockResolvedValue(undefined),
+      clearCachedCookies: jest.fn().mockResolvedValue(undefined)
+    }));
+    jest.doMock('puppeteer-extra', () => {
+      throw new Error("Cannot find module 'puppeteer-extra'");
+    }, { virtual: true });
+
+    const { loginWithCredentials } = await import('../../lib/core/auth/loginWithCredentials');
+
+    await expect(loginWithCredentials({ email: 'a@b.com', password: 'x' }))
+      .rejects.toThrow('npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth');
+  });
+
+  it('ignores the cache and logs in again when forceRelogin is set', async () => {
+    const page = makePage({ cookies: jest.fn().mockResolvedValue([makeCookie('_plaza_session', 'fresh', '.booth.pm')]) });
+    const { loginWithCredentials, sessionCache, launch } = await setup(page);
     (sessionCache.readCachedCookies as jest.Mock).mockResolvedValue({ _plaza_session: 'cached' });
 
     const result = await loginWithCredentials({ email: 'a@b.com', password: 'x' }, { forceRelogin: true });
 
-    expect(spawn).toHaveBeenCalled();
+    expect(launch).toHaveBeenCalled();
     expect(result).toEqual({ _plaza_session: 'fresh' });
   });
 });

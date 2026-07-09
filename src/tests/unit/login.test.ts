@@ -1,3 +1,5 @@
+export {};
+
 function makeCookie (name: string, value: string, domain: string): { name: string; value: string; domain: string } {
   return { name, value, domain };
 }

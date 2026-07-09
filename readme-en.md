@@ -115,13 +115,18 @@ await booth.disconnect(); // drops the session; the SDK keeps working for public
 
 ### `loginWithCredentials()` (advanced, not recommended)
 
-There is also `loginWithCredentials()`, which logs in by submitting an email/password directly through an automated browser ([SeleniumBase](https://github.com/seleniumbase/SeleniumBase)). **It is a materially different, riskier operation than `login()`**:
+There is also `loginWithCredentials()`, which logs in by submitting an email/password directly through an automated browser ([puppeteer-extra](https://github.com/berstend/puppeteer-extra) + the stealth plugin). **It is a materially different, riskier operation than `login()`**:
 
-- The SDK handles your password (in memory only, sent over a Python subprocess's stdin - never written to disk or passed as a command-line argument).
+- The SDK handles your password (in memory only - never written to disk).
 - pixiv's login page has confirmed Cloudflare + reCAPTCHA Enterprise anti-bot protection, and this function submits credentials through a stealth-mode automated browser specifically to get past it. This may violate pixiv's Terms of Service and can get the account flagged or restricted.
 - If a CAPTCHA is detected, it fails with a clear error instead of attempting to bypass it.
+- Runs headless by default (pass `headless: false` to show the browser).
 
-Use `login()` unless you have a specific reason not to. This requires Python 3 and `pip install seleniumbase` separately.
+Use `login()` unless you have a specific reason not to. This requires additional optional peer dependencies:
+
+```bash
+npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth
+```
 
 ```jsx
 import { loginWithCredentials } from 'booth-pm-sdk';

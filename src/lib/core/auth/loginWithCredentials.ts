@@ -1,6 +1,4 @@
-import { spawn } from 'child_process';
-import { existsSync } from 'fs';
-import path from 'path';
+import type { Browser, Page } from 'puppeteer';
 import { readCachedCookies, writeCachedCookies } from './SessionCache';
 
 export interface Credentials {
@@ -13,51 +11,66 @@ export interface LoginWithCredentialsOptions {
   forceRelogin?: boolean;
   /** Where the session cookies are cached on disk. Shares the same default as `login()`. */
   cachePath?: string;
-  /** Path to the `python3` executable. Defaults to "python3". */
-  pythonExecutable?: string;
+  /** Milliseconds to wait for the login to complete before giving up. Defaults to 30 seconds. */
+  timeoutMs?: number;
+  /** Run the automated browser headless. Defaults to true. */
+  headless?: boolean;
 }
 
-/**
- * In the built package, pixiv_login.py is copied next to boothSdk.js (see
- * tsup.config.ts's publicDir), so `__dirname` alone resolves it. Running
- * straight from TypeScript source (e.g. `npm run dev` via ts-node, where
- * nothing has been copied anywhere) needs the repo-root scripts/ copy
- * instead - __dirname there is src/lib/core/auth.
- */
-function resolveScriptPath (): string {
-  const builtPath = path.join(__dirname, 'pixiv_login.py');
-  if (existsSync(builtPath)) {
-    return builtPath;
-  }
+const SIGN_IN_URL = 'https://booth.pm/users/sign_in';
+const PIXIV_OAUTH_BUTTON_SELECTOR = 'form[action="/users/auth/pixiv"] input[type="submit"]';
+const EMAIL_INPUT_SELECTOR = 'input[type="text"][autocomplete*="username"]';
+const PASSWORD_INPUT_SELECTOR = 'input[type="password"][autocomplete*="current-password"]';
+const CAPTCHA_SELECTORS = ['iframe[src*="recaptcha"]', 'iframe[title*="recaptcha" i]', 'iframe[title*="challenge" i]'];
+const DEFAULT_TIMEOUT_MS = 30 * 1000;
+const POLL_INTERVAL_MS = 500;
 
-  const sourcePath = path.join(__dirname, '..', '..', '..', '..', 'scripts', 'pixiv_login.py');
-  if (existsSync(sourcePath)) {
-    return sourcePath;
+async function loadStealthPuppeteer (): Promise<any> {
+  try {
+    const [{ default: puppeteerExtra }, { default: StealthPlugin }] = await Promise.all([
+      import('puppeteer-extra') as unknown as Promise<{ default: any }>,
+      import('puppeteer-extra-plugin-stealth') as unknown as Promise<{ default: any }>
+    ]);
+    puppeteerExtra.use(StealthPlugin());
+    return puppeteerExtra;
+  } catch {
+    throw new Error(
+      'loginWithCredentials() requires the optional "puppeteer", "puppeteer-extra" and ' +
+      '"puppeteer-extra-plugin-stealth" dependencies. Install with: ' +
+      'npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth'
+    );
   }
+}
 
-  throw new Error(`Could not locate pixiv_login.py (looked in ${builtPath} and ${sourcePath}).`);
+async function hasCaptchaChallenge (page: Page): Promise<boolean> {
+  for (const selector of CAPTCHA_SELECTORS) {
+    if (await page.$(selector) !== null) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
  * Logs in with pixiv by submitting the given credentials through an
- * automated (SeleniumBase-driven) browser, instead of the visible,
+ * automated (stealth-mode) browser, instead of the visible,
  * you-type-it-yourself flow used by `login()`.
  *
  * **This is a materially different, riskier operation than `login()`:**
  * the SDK receives and forwards your plaintext password (only ever in
- * memory and over the subprocess's stdin - it is never written to disk
- * or passed as a command-line argument), and submits it through a
- * stealth-mode automated browser specifically to get past the
- * anti-bot protection (Cloudflare + reCAPTCHA Enterprise, confirmed
- * present) that pixiv puts on its login page. This may violate pixiv's
- * Terms of Service and can get the account flagged or restricted - use
- * `login()` unless you have a specific reason not to.
+ * memory - it is never written to disk), and submits it through a
+ * stealth-mode automated browser (puppeteer-extra + the stealth plugin)
+ * specifically to get past the anti-bot protection (Cloudflare +
+ * reCAPTCHA Enterprise, confirmed present) that pixiv puts on its login
+ * page. This may violate pixiv's Terms of Service and can get the account
+ * flagged or restricted - use `login()` unless you have a specific reason
+ * not to.
  *
  * If pixiv responds with a CAPTCHA challenge, this fails with a clear
  * error instead of attempting to solve or bypass it.
  *
- * Requires Python 3 and SeleniumBase installed separately:
- * `pip install seleniumbase`
+ * Requires the optional peer dependencies `puppeteer`, `puppeteer-extra`
+ * and `puppeteer-extra-plugin-stealth`.
  */
 export async function loginWithCredentials (credentials: Credentials, options: LoginWithCredentialsOptions = {}): Promise<Record<string, string>> {
   if (!options.forceRelogin) {
@@ -67,51 +80,60 @@ export async function loginWithCredentials (credentials: Credentials, options: L
     }
   }
 
-  const cookies = await runPixivLoginScript(credentials, options.pythonExecutable ?? 'python3');
-  await writeCachedCookies(cookies, options.cachePath);
-  return cookies;
-}
+  const puppeteer = await loadStealthPuppeteer();
+  const browser: Browser = await puppeteer.launch({ headless: options.headless ?? true });
 
-async function runPixivLoginScript (credentials: Credentials, pythonExecutable: string): Promise<Record<string, string>> {
-  return await new Promise((resolve, reject) => {
-    const child = spawn(pythonExecutable, [resolveScriptPath()], { stdio: ['pipe', 'pipe', 'pipe'] });
+  try {
+    const page: Page = await browser.newPage();
+    await page.goto(SIGN_IN_URL, { waitUntil: 'networkidle2' });
 
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
-    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    // Leave booth.pm for pixiv's login page first. Waiting to "come back to
+    // booth.pm" without this step would resolve immediately, since we
+    // start out on booth.pm already.
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle2' }),
+      page.click(PIXIV_OAUTH_BUTTON_SELECTOR)
+    ]);
 
-    child.on('error', (error) => {
-      reject(new Error(
-        `loginWithCredentials() requires Python 3 and SeleniumBase installed. ` +
-        `Install with: pip install seleniumbase (original error: ${error.message})`
-      ));
-    });
+    await page.waitForSelector(EMAIL_INPUT_SELECTOR, { timeout: 15000 });
+    await page.type(EMAIL_INPUT_SELECTOR, credentials.email, { delay: 80 });
+    await page.type(PASSWORD_INPUT_SELECTOR, credentials.password, { delay: 80 });
+    await page.keyboard.press('Enter');
 
-    child.on('close', (code) => {
-      if (/ModuleNotFoundError.*seleniumbase/i.test(stderr)) {
-        reject(new Error('loginWithCredentials() requires the "seleniumbase" Python package. Install with: pip install seleniumbase'));
-        return;
+    const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (page.url().includes('booth.pm')) {
+        break;
       }
-
-      const lastLine = stdout.trim().split('\n').pop() ?? '';
-      let parsed: any;
-      try {
-        parsed = JSON.parse(lastLine);
-      } catch {
-        reject(new Error(`pixiv_login.py produced unexpected output (exit code ${String(code)}): ${stderr || stdout}`));
-        return;
+      if (await hasCaptchaChallenge(page)) {
+        throw new Error(
+          'pixiv presented a CAPTCHA challenge. Automated login cannot proceed ' +
+          'past it - use login() (visible browser, you log in yourself) instead.'
+        );
       }
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    }
 
-      if (parsed.error) {
-        reject(new Error(parsed.error as string));
-        return;
+    if (!page.url().includes('booth.pm')) {
+      throw new Error('Timed out waiting for the login to complete.');
+    }
+
+    const cookies = await page.cookies();
+    const boothCookies: Record<string, string> = {};
+    for (const cookie of cookies) {
+      if (cookie.domain.replace(/^\./, '').endsWith('booth.pm')) {
+        boothCookies[cookie.name] = cookie.value;
       }
+    }
 
-      resolve(parsed as Record<string, string>);
-    });
+    if (Object.keys(boothCookies).length === 0) {
+      throw new Error('Login did not produce any booth.pm session cookies.');
+    }
 
-    child.stdin.write(JSON.stringify(credentials) + '\n');
-    child.stdin.end();
-  });
+    await writeCachedCookies(boothCookies, options.cachePath);
+    return boothCookies;
+  } finally {
+    await browser.close();
+  }
 }
