@@ -8,5 +8,6 @@ export default defineConfig({
   sourcemap: false,
   clean: true,
   minify: true,
-  outDir: 'lib'
+  outDir: 'lib',
+  publicDir: 'scripts'
 });

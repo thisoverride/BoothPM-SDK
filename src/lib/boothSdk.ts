@@ -5,3 +5,5 @@ export type { BoothProductCollection, DownloadableData, DownloadStats, ProductSe
 export { AgeRestriction, ListFilter, ProductCategory } from './utils/Utils';
 export { disconnect, login } from './core/auth/login';
 export type { LoginOptions } from './core/auth/login';
+export { loginWithCredentials } from './core/auth/loginWithCredentials';
+export type { Credentials, LoginWithCredentialsOptions } from './core/auth/loginWithCredentials';

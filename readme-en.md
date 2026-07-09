@@ -113,6 +113,23 @@ const product = await booth.getProduct(3563200); // subsequent requests use the 
 await booth.disconnect(); // drops the session; the SDK keeps working for public resources
 ```
 
+### `loginWithCredentials()` (advanced, not recommended)
+
+There is also `loginWithCredentials()`, which logs in by submitting an email/password directly through an automated browser ([SeleniumBase](https://github.com/seleniumbase/SeleniumBase)). **It is a materially different, riskier operation than `login()`**:
+
+- The SDK handles your password (in memory only, sent over a Python subprocess's stdin - never written to disk or passed as a command-line argument).
+- pixiv's login page has confirmed Cloudflare + reCAPTCHA Enterprise anti-bot protection, and this function submits credentials through a stealth-mode automated browser specifically to get past it. This may violate pixiv's Terms of Service and can get the account flagged or restricted.
+- If a CAPTCHA is detected, it fails with a clear error instead of attempting to bypass it.
+
+Use `login()` unless you have a specific reason not to. This requires Python 3 and `pip install seleniumbase` separately.
+
+```jsx
+import { loginWithCredentials } from 'booth-pm-sdk';
+
+const cookies = await loginWithCredentials({ email: 'you@example.com', password: '...' });
+const booth = new BoothSDK({ lang: 'en', cookies });
+```
+
 - `booth.login(options?: { timeoutMs?: number; forceRelogin?: boolean; cachePath?: string })`: opens a browser window the first time and waits for you to finish logging in (defaults to a 5 minute timeout). The resulting session cookies are cached to `~/.booth-pm-sdk/session.json` (override with `cachePath`, written with `0600` permissions), so **subsequent calls reuse the cached session and return immediately without opening a browser**. Pass `forceRelogin: true` to bypass the cache and log in again regardless.
 - `booth.disconnect()`: clears the cached session and reverts to whatever `cookies` the instance was constructed with (none by default). The SDK keeps working for all public resources afterward.
 - The standalone `login()`/`disconnect()` functions (`import { login, disconnect } from 'booth-pm-sdk'`) use the same cache and are available if you'd rather manage cookies yourself.

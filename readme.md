@@ -113,6 +113,23 @@ const wished = await booth.getProduct(3563200); // 以降は認証済みセッ�
 await booth.disconnect(); // セッションを破棄し、以降は未認証状態に戻ります（公開リソースへのアクセスは引き続き可能です）
 ```
 
+### `loginWithCredentials()` (上級者向け・非推奨)
+
+メールアドレスとパスワードを直接渡して自動化ブラウザ（[SeleniumBase](https://github.com/seleniumbase/SeleniumBase)）でログインする`loginWithCredentials()`も存在しますが、**`login()`とは性質が大きく異なります**：
+
+- SDKがあなたのパスワードを（メモリ上のみ、Pythonサブプロセスの標準入力経由で）扱います。ディスクへの書き込みやコマンドライン引数への受け渡しは行いません。
+- pixivのログインページにはCloudflareとreCAPTCHA Enterpriseによるボット対策が確認されており、この関数はそれを回避するステルスモードで自動入力を行います。これはpixivの利用規約に抵触する可能性があり、アカウントが制限される場合があります。
+- CAPTCHAが検出された場合は、それを突破しようとせず明確なエラーで失敗します。
+
+特別な理由がない限り`login()`を使用してください。使う場合はPython 3と`pip install seleniumbase`が別途必要です。
+
+```jsx
+import { loginWithCredentials } from 'booth-pm-sdk';
+
+const cookies = await loginWithCredentials({ email: 'you@example.com', password: '...' });
+const booth = new BoothSDK({ lang: 'en', cookies });
+```
+
 - `booth.login(options?: { timeoutMs?: number; forceRelogin?: boolean; cachePath?: string })`: 初回はブラウザウィンドウを開き、ユーザーのログイン完了を待ちます（デフォルトのタイムアウトは5分）。取得したセッションCookieは`~/.booth-pm-sdk/session.json`（`cachePath`で変更可、パーミッションは`0600`）に保存され、**2回目以降の呼び出しはこのキャッシュを再利用してブラウザを開かずに即座に完了します**。`forceRelogin: true`を指定するとキャッシュを無視して必ずブラウザでの再ログインを行います。
 - `booth.disconnect()`: キャッシュされたセッションを削除し、インスタンス生成時に渡した`cookies`（未指定なら空）に戻します。ログアウト後もSDKは引き続き公開リソースに正常にアクセスできます。
 - スタンドアロン関数の`login()`/`disconnect()`（`import { login, disconnect } from 'booth-pm-sdk'`）も同じキャッシュ機構を使用しており、Cookieを自分で管理したい場合に利用できます。
