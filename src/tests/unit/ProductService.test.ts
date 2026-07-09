@@ -22,7 +22,7 @@ describe('ProductService.listProducts / search (HTML scraping)', () => {
     const html = buildListingHtml([
       { id: 111, brand: 'BrandA', category: 5, price: 500, name: 'Hair Texture', imageURL: 'img1.jpg', shopName: 'ShopA', shopURL: 'https://shopa.booth.pm', shopImageURL: 'avatar1.jpg' },
       { id: 222, brand: 'BrandB', category: 5, price: 0, name: 'Free Model', imageURL: 'img2.jpg', shopName: 'ShopB', shopURL: 'https://shopb.booth.pm', shopImageURL: 'avatar2.jpg', isAdult: true }
-    ], { resultsCount: 42, totalArticles: 180 });
+    ], { resultsCount: 180 });
 
     const get = jest.fn(async (endpoint: string) => {
       if (endpoint.includes('wish_lists.json')) {
@@ -34,7 +34,7 @@ describe('ProductService.listProducts / search (HTML scraping)', () => {
     const service = new ProductService(makeHttpClient(get));
     const result = await service.listProducts(1, { sortBy: ListFilter.POPULARITY });
 
-    expect(result.totalArticles).toBe(42);
+    expect(result.totalArticles).toBe(180);
     expect(result.totalPages).toBe(Math.ceil(180 / 60));
     expect(result.items).toHaveLength(2);
 
@@ -57,6 +57,35 @@ describe('ProductService.listProducts / search (HTML scraping)', () => {
       isAdult: true,
       liked: 0
     });
+  });
+
+  it('regression: totalArticles and totalPages stay consistent with each other (not 0 vs. an unrelated huge number)', async () => {
+    // Mirrors booth.pm's real markup: a single "Results N 件" <b> right
+    // before #js-market-result-pulldown is the only source of truth for
+    // both totalArticles and totalPages.
+    const html = buildListingHtml([], { resultsCount: 2487365 });
+    const get = jest.fn(async (endpoint: string) => (
+      endpoint.includes('wish_lists.json') ? { item_ids: [], wishlists_counts: {} } : html
+    ));
+    const service = new ProductService(makeHttpClient(get));
+
+    const result = await service.listProducts(1);
+
+    expect(result.totalArticles).toBe(2487365);
+    expect(result.totalPages).toBe(Math.ceil(2487365 / 60));
+  });
+
+  it('returns zeroed counts (not garbage) when the results marker is missing from the page', async () => {
+    const html = buildListingHtml([]);
+    const get = jest.fn(async (endpoint: string) => (
+      endpoint.includes('wish_lists.json') ? { item_ids: [], wishlists_counts: {} } : html
+    ));
+    const service = new ProductService(makeHttpClient(get));
+
+    const result = await service.listProducts(1);
+
+    expect(result.totalArticles).toBe(0);
+    expect(result.totalPages).toBe(0);
   });
 
   it('throws when the age-verification wall is present in the response', async () => {
@@ -96,7 +125,7 @@ describe('ProductService.listProducts / search (HTML scraping)', () => {
   it('search() returns a parsed collection for a valid term', async () => {
     const html = buildListingHtml([
       { id: 333, brand: 'BrandC', category: 1, price: 100, name: 'Comic', imageURL: 'img.jpg', shopName: 'ShopC', shopURL: 'https://shopc.booth.pm', shopImageURL: 'avatar.jpg' }
-    ], { resultsCount: 1, totalArticles: 1 });
+    ], { resultsCount: 1 });
 
     const get = jest.fn(async (endpoint: string) => (
       endpoint.includes('wish_lists.json') ? { item_ids: [333], wishlists_counts: {} } : html

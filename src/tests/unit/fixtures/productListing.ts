@@ -9,17 +9,13 @@ export function buildListingHtml (items: Array<{
   shopURL: string;
   shopImageURL: string;
   isAdult?: boolean;
-}>, opts: { resultsCount?: number; totalArticles?: number; ageBlocked?: boolean } = {}): string {
+}>, opts: { resultsCount?: number; ageBlocked?: boolean } = {}): string {
   const ageBlock = opts.ageBlocked === true
-    ? '<div id="age-confirmation"><p class="u-tpg-title1 u-m-0">Adult content confirmation</p></div>'
+    ? '<nav><ul><li class="js-approve-adult"><a href="#">[Yes]</a></li></ul></nav>'
     : '';
 
   const resultsBlock = opts.resultsCount !== undefined
-    ? `<div class="u-d-flex u-align-items-center u-pb-300 u-tpg-body2 u-justify-content-between"><b>${opts.resultsCount}</b> items found</div>`
-    : '';
-
-  const totalArticlesBlock = opts.totalArticles !== undefined
-    ? `<div class="container"><b>${opts.totalArticles}</b> results</div>`
+    ? `<div class="flex items-center u-pb-300 text-14 justify-between"><b>Results ${opts.resultsCount} 件</b><div id="js-market-result-pulldown"></div></div>`
     : '';
 
   const cards = items.map(item => `
@@ -41,7 +37,6 @@ export function buildListingHtml (items: Array<{
       <body>
         ${ageBlock}
         ${resultsBlock}
-        ${totalArticlesBlock}
         <ul class="l-cards-5cols">
           ${cards}
         </ul>

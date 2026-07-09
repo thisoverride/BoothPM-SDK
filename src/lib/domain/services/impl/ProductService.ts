@@ -139,21 +139,16 @@ export default class ProductService extends BaseService {
   private async _extractProducts (html: any): Promise<BoothProductCollection> {
     const $ = cheerio.load(html as string);
 
-    const ageVerification: string = $('#age-confirmation .u-tpg-title1.u-m-0').text();
-    if (ageVerification) {
+    const isAgeGated: boolean = $('.js-approve-adult').length > 0;
+    if (isAgeGated) {
       throw new Error('Adulte_Content_is_not_enabled');
     }
-    const resultRaw: string = $('div.u-d-flex.u-align-items-center.u-pb-300.u-tpg-body2.u-justify-content-between b').text();
+
+    const resultRaw: string = $('#js-market-result-pulldown').prev('b').text();
     const resultsNumber: number = parseInt(resultRaw?.match(/\d+/g)?.join('') || '0', 10);
 
     const elements = $('.l-cards-5cols li[data-product-id]');
-    let totalArticle: string = $('.container b').text();
-    let count: number = 0;
-
-    if (totalArticle && totalArticle.trim() !== '') {
-      totalArticle = totalArticle.replace(/\D/g, '');
-      count = Math.ceil(Number(totalArticle) / 60);
-    }
+    const count: number = resultsNumber > 0 ? Math.ceil(resultsNumber / 60) : 0;
 
     const itemsData: BoothProductOverview[] = [];
     elements.each((_index, element) => {
