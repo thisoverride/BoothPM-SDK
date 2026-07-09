@@ -56,7 +56,7 @@ export default class ProductService extends BaseService {
 
     const variations = wsData.variations || [];
     const downloadable = variations[0]?.downloadable || {};
-    const noMusics: Downloadable = (downloadable.no_musics as Downloadable) ?? null;
+    const noMusics: Downloadable[] | null = (downloadable.no_musics as Downloadable[]) ?? null;
     const cleanedDescription = wsData.description.replace(/\n/g, ' ');
 
     const boothProduct = new BoothProductDto(
@@ -92,10 +92,13 @@ export default class ProductService extends BaseService {
   }
 
   public async download (downloadableData: DownloadableData): Promise<DownloadStats> {
-    const downloadLinks: any = downloadableData.boothProduct.downloadable;
+    const downloadLinks: Downloadable[] | null = downloadableData.boothProduct.downloadable;
 
     let successfulDownloads: number = 0;
     let failedDownloads: number = 0;
+    if (!downloadLinks) {
+      return { successfulDownloads, failedDownloads };
+    }
     for (const linkInfo of downloadLinks) {
       try {
         const wsData: any = await this.performRequest(async () =>
@@ -113,7 +116,6 @@ export default class ProductService extends BaseService {
             resolve();
           });
           fileStream.on('error', (error) => {
-            failedDownloads++;
             reject(error);
           });
         });

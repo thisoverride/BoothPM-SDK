@@ -1,5 +1,5 @@
 import type { AgeRestriction, ListFilter, ProductCategory } from '../../utils/Utils';
-import type { BoothProductOverview } from './dto/Dto';
+import type { BoothProduct, BoothProductOverview } from './dto/Dto';
 
 /**
  * Represents a downloadable item with an optional path.
@@ -12,7 +12,7 @@ export interface DownloadableData {
   /**
    * The booth product item associated with the download.
    */
-  boothProduct: Boothproduct;
+  boothProduct: BoothProduct;
 }
 
 /**
@@ -51,28 +51,6 @@ export interface DownloadStats {
    * @type {number}
    */
   failedDownloads: number;
-}
-
-/**
- * Represents endpoints for product operations.
- * @interface
- */
-export interface ProductEndpoints {
-  /**
-   * Endpoint for searching products.
-   * @type {string}
-   */
-  search: string;
-  /**
-   * Endpoint for listing items.
-   * @type {string}
-   */
-  listItems: string;
-  /**
-   * Endpoint for getting a product by ID.
-   * @type {string}
-   */
-  getById: string;
 }
 
 /**

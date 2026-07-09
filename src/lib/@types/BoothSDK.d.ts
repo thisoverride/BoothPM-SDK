@@ -1,24 +1,30 @@
+import type { BoothProduct } from './services/dto/Dto';
+import type { BoothProductCollection, DownloadableData, DownloadStats, ProductSearchFilter } from './services/ProductService';
+
 export type Language = 'en' | 'ja';
 
 export interface BaseConfig {
   lang: Language;
+  /**
+   * Optional cookies to send with every request (e.g. to bypass anti-bot
+   * challenges). Not required for standard usage.
+   */
+  cookies?: Record<string, string>;
 }
 
-export interface Headers {
-  Cookie: string;
-}
 export interface Config {
   lang: string;
+  cookies?: Record<string, string>;
 }
 
 export interface IBoothSDK {
   /**
    * Lists products with optional pagination and filtering.
    * @param {number} [index] - The page index for pagination.
-   * @param {ListingFilter} [filterOn] - Filter to apply to the product listing.
-   * @returns {Promise<CollectionBoothProduct>} - A promise that resolves to a collection of booth products.
+   * @param {ProductSearchFilter} [filterOn] - Filter to apply to the product listing.
+   * @returns {Promise<BoothProductCollection>} - A promise that resolves to a collection of booth products.
    */
-  listProducts: (index: number, filterOn?: ListingFilter) => Promise<CollectionBoothProduct>;
+  listProducts: (index: number, filterOn?: ProductSearchFilter) => Promise<BoothProductCollection>;
 
   /**
    * Retrieves details of a specific product by its ID.
@@ -30,10 +36,10 @@ export interface IBoothSDK {
   /**
    * Searches for products based on a search term and optional filtering.
    * @param {string} term - The search term to use.
-   * @param {ListingFilter} [filterOn] - Filter to apply to the search results.
-   * @returns {Promise<CollectionBoothProduct>} - A promise that resolves to a collection of search results.
+   * @param {ProductSearchFilter} [filterOn] - Filter to apply to the search results.
+   * @returns {Promise<BoothProductCollection>} - A promise that resolves to a collection of search results.
    */
-  find: (term: string, filterOn?: ListingFilter) => Promise<CollectionBoothProduct>;
+  find: (term: string, filterOn?: ProductSearchFilter) => Promise<BoothProductCollection>;
 
   /**
    * Saves downloadable data for a specified product.

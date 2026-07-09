@@ -10,7 +10,7 @@ export default class BoothProductDto implements BoothProduct {
   public readonly shop: Shop;
   public readonly isAdult: boolean;
   public readonly liked: number;
-  public readonly downloadable: Downloadable;
+  public readonly downloadable: Downloadable[] | null;
 
   constructor (
     id: number,
@@ -22,7 +22,7 @@ export default class BoothProductDto implements BoothProduct {
     shop: Shop,
     isAdult: boolean,
     liked: number,
-    downloadable: Downloadable
+    downloadable: Downloadable[] | null
   ) {
     this.id = id;
     this.description = description;

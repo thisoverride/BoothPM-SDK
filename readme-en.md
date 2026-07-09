@@ -16,16 +16,14 @@ We warmly welcome contributions aimed at improving the functionality and usabili
 Here is an example of how to use the Booth SDK.
 
 ```jsx
-import type { BoothProductOverview } from './@types/services/dto/Dto';
-import type { BoothProductCollection } from './@types/services/ProductService';
-import BoothPm from './core/BoothPm';
+import BoothSDK, { type BoothProductOverview, type BoothProductCollection } from 'booth-pm-sdk';
 
 void (async () => {
-  const booth = new BoothPm({ lang: 'en' });
+  const booth = new BoothSDK({ lang: 'en' });
 
   const listResult: BoothProductCollection = await booth.listProducts(0, {
-    sortBy: BoothPm.FILTERS.LOVES,
-    category: BoothPm.CATEGORIES.MODELS_3D,
+    sortBy: BoothSDK.FILTERS.LOVES,
+    category: BoothSDK.CATEGORIES.MODELS_3D,
     onlyFreeProducts: true
   });
   

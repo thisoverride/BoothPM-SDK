@@ -34,7 +34,7 @@ export interface BoothProduct {
   shop: Shop;
   isAdult: boolean;
   liked: number;
-  downloadable: Downloadable;
+  downloadable: Downloadable[] | null;
 }
 
 export interface BoothProductOverview {

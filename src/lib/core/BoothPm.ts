@@ -57,7 +57,8 @@ export class BoothSDK implements IBoothSDK {
       throw new Error('This language is not supported.');
     }
     return {
-      lang: conf.lang
+      lang: conf.lang,
+      cookies: conf.cookies
     };
   }
 }

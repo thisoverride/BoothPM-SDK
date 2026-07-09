@@ -1,6 +1,0 @@
-src/
-tests/
-tsconfig.json
-tsup.config.ts
-.eslintrc
-jest.config.js

@@ -1,6 +1,6 @@
 {
   "name": "booth-pm-sdk",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "license": "MIT",
   "main": "./lib/boothSdk.js",
   "module": "./lib/boothSdk.mjs",
@@ -12,7 +12,9 @@
       "types": "./lib/boothSdk.d.ts"
     }
   },
-  "files": ["lib"],
+  "files": [
+    "lib"
+  ],
   "scripts": {
     "dev": "ts-node-dev src/lib/main.ts",
     "build": "tsup",
@@ -46,9 +48,10 @@
     "eslint-plugin-n": "^16.6.2",
     "eslint-plugin-promise": "^6.1.1",
     "jest": "^29.7.0",
+    "ts-jest": "^29.4.11",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.3.3",
-    "tsup": "^8.0.2"
+    "tsup": "^8.0.2",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "axios": "^1.6.8",
