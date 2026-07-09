@@ -6,5 +6,5 @@ build/
 downloads/
 src/lib/main.ts
 doc/
-lib/
+/lib/
 wishlist.json
