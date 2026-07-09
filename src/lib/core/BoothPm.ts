@@ -5,6 +5,7 @@ import ProductService from '../domain/services/impl/ProductService';
 import WishlistService from '../domain/services/impl/WishlistService';
 import { AgeRestriction, ListFilter, ProductCategory } from '../utils/Utils';
 import HttpClient from './api/HttpClient';
+import { disconnect as disconnectSession, login as loginSession, type LoginOptions } from './auth/login';
 
 export class BoothSDK implements IBoothSDK {
   public static readonly CATEGORIES = ProductCategory;
@@ -13,11 +14,34 @@ export class BoothSDK implements IBoothSDK {
   private readonly _httpClient: HttpClient;
   private readonly _productService: ProductService;
   private readonly _wishlistService: WishlistService;
+  private readonly _defaultCookies: Record<string, string>;
 
   constructor (config: BaseConfig) {
-    this._httpClient = new HttpClient(this._setBaseConfig(config));
+    const resolvedConfig = this._setBaseConfig(config);
+    this._defaultCookies = resolvedConfig.cookies ?? {};
+    this._httpClient = new HttpClient(resolvedConfig);
     this._productService = new ProductService(this._httpClient);
     this._wishlistService = new WishlistService();
+  }
+
+  /**
+   * Logs in with pixiv (opening a browser window the first time, then
+   * reusing the cached session on subsequent calls - see `login()` for
+   * details) and applies the resulting cookies to this instance.
+   */
+  public async login (options?: LoginOptions): Promise<void> {
+    const cookies = await loginSession(options);
+    this._httpClient.setCookies(cookies);
+  }
+
+  /**
+   * Clears the cached pixiv session (if any) and reverts this instance to
+   * the cookies it was constructed with (none by default), so it keeps
+   * working for all public resources.
+   */
+  public async disconnect (): Promise<void> {
+    await disconnectSession();
+    this._httpClient.setCookies(this._defaultCookies);
   }
 
   public async listProducts (index: number = 1, filterOn?: ProductSearchFilter): Promise<BoothProductCollection> {

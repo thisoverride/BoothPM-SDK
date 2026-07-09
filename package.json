@@ -1,6 +1,6 @@
 {
   "name": "booth-pm-sdk",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -56,10 +56,19 @@
     "eslint-plugin-n": "^16.6.2",
     "eslint-plugin-promise": "^6.1.1",
     "jest": "^29.7.0",
+    "puppeteer": "^25.3.0",
     "ts-jest": "^29.4.11",
     "ts-node-dev": "^2.0.0",
     "tsup": "^8.0.2",
     "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "puppeteer": "^25.0.0"
+  },
+  "peerDependenciesMeta": {
+    "puppeteer": {
+      "optional": true
+    }
   },
   "dependencies": {
     "axios": "^1.6.8",

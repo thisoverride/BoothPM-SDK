@@ -92,7 +92,37 @@ Output :
 const booth = new BoothSDK({ lang: 'en', cookies: { my_cookie: 'value' } });
 ```
 
+## Login (optional)
+
+If you want to log in with your own pixiv account, use the SDK instance's `login()`/`disconnect()`. It opens a real browser window and lets you log in yourself as usual (your password is never seen by the SDK).
+
+This requires the optional `puppeteer` dependency, which you only need to install if you use this feature:
+
+```bash
+npm install puppeteer
+```
+
+```jsx
+import BoothSDK from 'booth-pm-sdk';
+
+const booth = new BoothSDK({ lang: 'en' });
+
+await booth.login(); // a browser window opens the first time, log in with pixiv as usual
+const product = await booth.getProduct(3563200); // subsequent requests use the authenticated session
+
+await booth.disconnect(); // drops the session; the SDK keeps working for public resources
+```
+
+- `booth.login(options?: { timeoutMs?: number; forceRelogin?: boolean; cachePath?: string })`: opens a browser window the first time and waits for you to finish logging in (defaults to a 5 minute timeout). The resulting session cookies are cached to `~/.booth-pm-sdk/session.json` (override with `cachePath`, written with `0600` permissions), so **subsequent calls reuse the cached session and return immediately without opening a browser**. Pass `forceRelogin: true` to bypass the cache and log in again regardless.
+- `booth.disconnect()`: clears the cached session and reverts to whatever `cookies` the instance was constructed with (none by default). The SDK keeps working for all public resources afterward.
+- The standalone `login()`/`disconnect()` functions (`import { login, disconnect } from 'booth-pm-sdk'`) use the same cache and are available if you'd rather manage cookies yourself.
+
 # API Reference
+
+## Authentication
+
+- `login(options?)`: logs in with pixiv (opens a browser only the first time; reuses the cached session afterward). See the "Login (optional)" section above.
+- `disconnect()`: clears the cached session and reverts to the default cookie state.
 
 ## Product
 
@@ -114,6 +144,7 @@ const booth = new BoothSDK({ lang: 'en', cookies: { my_cookie: 'value' } });
 This SDK scrapes Booth.pm's public HTML, so it can break whenever the site changes its markup.
 
 - `listProducts`/`find` throw when they hit the age-verification wall for adult content. That said, the per-item `isAdult` flag on listing/search results (read from a badge in the card markup) could not be verified against real adult content, since unauthenticated requests always hit that wall. For a value you can trust, use the `isAdult` returned by `getProduct` (read directly from Booth's product API) instead.
+- `login()` depends on a CSS selector for the button on booth.pm's sign-in page. Like the rest of the scraping logic, it can break if Booth changes that page's markup.
 
 ## License
 

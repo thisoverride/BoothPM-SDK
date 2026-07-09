@@ -1,5 +1,6 @@
 import type { BoothProduct } from './services/dto/Dto';
 import type { BoothProductCollection, DownloadableData, DownloadStats, ProductSearchFilter } from './services/ProductService';
+import type { LoginOptions } from '../core/auth/login';
 
 export type Language = 'en' | 'ja';
 
@@ -18,6 +19,23 @@ export interface Config {
 }
 
 export interface IBoothSDK {
+  /**
+   * Logs in with pixiv (opening a browser window the first time, then
+   * reusing the cached session on subsequent calls) and applies the
+   * resulting cookies to this instance.
+   * @param {LoginOptions} [options] - Login/cache behavior options.
+   * @returns {Promise<void>}
+   */
+  login: (options?: LoginOptions) => Promise<void>;
+
+  /**
+   * Clears the cached pixiv session (if any) and reverts this instance to
+   * the cookies it was constructed with (none by default), so it keeps
+   * working for all public resources.
+   * @returns {Promise<void>}
+   */
+  disconnect: () => Promise<void>;
+
   /**
    * Lists products with optional pagination and filtering.
    * @param {number} [index] - The page index for pagination.

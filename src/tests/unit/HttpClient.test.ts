@@ -80,4 +80,26 @@ describe('HttpClient', () => {
     await expect(client.get('items/1')).rejects.toThrow('network down');
     spy.mockRestore();
   });
+
+  it('setCookies() replaces the cookies used on subsequent requests', async () => {
+    mockedAxios.mockResolvedValue({ data: {} });
+    const client = new HttpClient({ lang: 'en', cookies: { a: '1' } });
+
+    client.setCookies({ b: '2' });
+    await client.get('items/1');
+
+    const options = mockedAxios.mock.calls[0][0];
+    expect(options.headers.Cookie).toBe('b=2');
+  });
+
+  it('setCookies({}) clears previously configured cookies', async () => {
+    mockedAxios.mockResolvedValue({ data: {} });
+    const client = new HttpClient({ lang: 'en', cookies: { a: '1' } });
+
+    client.setCookies({});
+    await client.get('items/1');
+
+    const options = mockedAxios.mock.calls[0][0];
+    expect(options.headers.Cookie).toBe('');
+  });
 });

@@ -4,11 +4,15 @@ import ApiEndpoints from './ApiEndPoint';
 
 export default class HttpClient {
   private readonly BASE_URL: string;
-  private readonly cookies: Record<string, string>;
+  private cookies: Record<string, string>;
 
   constructor (config: Config) {
     this.BASE_URL = ApiEndpoints.BASE_URL + config.lang;
     this.cookies = config.cookies ?? {};
+  }
+
+  public setCookies (cookies: Record<string, string>): void {
+    this.cookies = cookies;
   }
 
   private getCookiesString (): string {

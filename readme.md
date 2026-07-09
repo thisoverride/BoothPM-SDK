@@ -92,7 +92,37 @@ void (async () => {
 const booth = new BoothSDK({ lang: 'en', cookies: { my_cookie: 'value' } });
 ```
 
+## ログイン (任意)
+
+自分のpixivアカウントでログインしたい場合は、SDKインスタンスの`login()`/`disconnect()`を使用できます。実際のブラウザウィンドウが開き、あなた自身がいつも通りログインします（パスワードをSDKに渡すことはありません）。
+
+この機能はオプションの依存関係`puppeteer`を必要とします。使う場合のみ、別途インストールしてください。
+
+```bash
+npm install puppeteer
+```
+
+```jsx
+import BoothSDK from 'booth-pm-sdk';
+
+const booth = new BoothSDK({ lang: 'en' });
+
+await booth.login(); // 初回はブラウザが開くので、いつも通りpixivでログインしてください
+const wished = await booth.getProduct(3563200); // 以降は認証済みセッションでリクエストされます
+
+await booth.disconnect(); // セッションを破棄し、以降は未認証状態に戻ります（公開リソースへのアクセスは引き続き可能です）
+```
+
+- `booth.login(options?: { timeoutMs?: number; forceRelogin?: boolean; cachePath?: string })`: 初回はブラウザウィンドウを開き、ユーザーのログイン完了を待ちます（デフォルトのタイムアウトは5分）。取得したセッションCookieは`~/.booth-pm-sdk/session.json`（`cachePath`で変更可、パーミッションは`0600`）に保存され、**2回目以降の呼び出しはこのキャッシュを再利用してブラウザを開かずに即座に完了します**。`forceRelogin: true`を指定するとキャッシュを無視して必ずブラウザでの再ログインを行います。
+- `booth.disconnect()`: キャッシュされたセッションを削除し、インスタンス生成時に渡した`cookies`（未指定なら空）に戻します。ログアウト後もSDKは引き続き公開リソースに正常にアクセスできます。
+- スタンドアロン関数の`login()`/`disconnect()`（`import { login, disconnect } from 'booth-pm-sdk'`）も同じキャッシュ機構を使用しており、Cookieを自分で管理したい場合に利用できます。
+
 # API リファレンス
+
+## 認証
+
+- `login(options?)`: pixivでログインします（初回のみブラウザが開き、以降はキャッシュされたセッションを再利用します）。「ログイン (任意)」セクションを参照してください。
+- `disconnect()`: キャッシュされたセッションを削除し、デフォルトのCookie状態に戻します。
 
 ## 商品
 
@@ -114,6 +144,7 @@ const booth = new BoothSDK({ lang: 'en', cookies: { my_cookie: 'value' } });
 このSDKはBooth.pmの公開HTMLをスクレイピングしているため、サイト側のマークアップ変更によって壊れる可能性があります。
 
 - 年齢確認の壁（成人向けコンテンツ）が出た場合、`listProducts`/`find`はエラーを投げます。ただし、`listProducts`/`find`の一覧結果に含まれる各商品の`isAdult`フラグ（一覧表示のバッジ由来）は、年齢確認済みセッション下でのみ検証されており、未検証です。確実な判定が必要な場合は`getProduct`が返す`isAdult`（API由来の値）を利用してください。
+- `login()`はbooth.pmのログインページ上のボタンのCSSセレクタに依存しています。他のスクレイピング部分と同様、Booth側がこのページのマークアップを変更すると動作しなくなる可能性があります。
 
 ## ライセンス
 
