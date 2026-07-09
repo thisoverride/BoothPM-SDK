@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { existsSync } from 'fs';
 import path from 'path';
 import { readCachedCookies, writeCachedCookies } from './SessionCache';
 
@@ -16,7 +17,26 @@ export interface LoginWithCredentialsOptions {
   pythonExecutable?: string;
 }
 
-const SCRIPT_PATH = path.join(__dirname, 'pixiv_login.py');
+/**
+ * In the built package, pixiv_login.py is copied next to boothSdk.js (see
+ * tsup.config.ts's publicDir), so `__dirname` alone resolves it. Running
+ * straight from TypeScript source (e.g. `npm run dev` via ts-node, where
+ * nothing has been copied anywhere) needs the repo-root scripts/ copy
+ * instead - __dirname there is src/lib/core/auth.
+ */
+function resolveScriptPath (): string {
+  const builtPath = path.join(__dirname, 'pixiv_login.py');
+  if (existsSync(builtPath)) {
+    return builtPath;
+  }
+
+  const sourcePath = path.join(__dirname, '..', '..', '..', '..', 'scripts', 'pixiv_login.py');
+  if (existsSync(sourcePath)) {
+    return sourcePath;
+  }
+
+  throw new Error(`Could not locate pixiv_login.py (looked in ${builtPath} and ${sourcePath}).`);
+}
 
 /**
  * Logs in with pixiv by submitting the given credentials through an
@@ -54,7 +74,7 @@ export async function loginWithCredentials (credentials: Credentials, options: L
 
 async function runPixivLoginScript (credentials: Credentials, pythonExecutable: string): Promise<Record<string, string>> {
   return await new Promise((resolve, reject) => {
-    const child = spawn(pythonExecutable, [SCRIPT_PATH], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(pythonExecutable, [resolveScriptPath()], { stdio: ['pipe', 'pipe', 'pipe'] });
 
     let stdout = '';
     let stderr = '';
