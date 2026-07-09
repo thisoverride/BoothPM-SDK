@@ -73,14 +73,23 @@ void (async () => {
   liked: 10415,
   downloadable: [
     {
-      file_name: 'Pastel_Balayage_Color_Hair_Texture',
-      file_extension: '.zip',
-      file_size: '3.92 MB',
+      fileName: 'Pastel_Balayage_Color_Hair_Texture',
+      fileExtension: '.zip',
+      fileSize: '3.92 MB',
       name: 'Pastel_Balayage_Color_Hair_Texture.zip',
       url: 'https://booth.pm/downloadables/2336025'
     }
   ]
 };
+```
+
+## 設定 (Config)
+
+- `lang`: `'en' | 'ja'`。必須。
+- `cookies`: `Record<string, string>`（任意）。通常の商品閲覧には不要ですが、年齢確認済みのセッションを持つ場合など、特定のケースでリクエストに独自のCookieを送りたいときに使用します。
+
+```jsx
+const booth = new BoothSDK({ lang: 'en', cookies: { my_cookie: 'value' } });
 ```
 
 # API リファレンス
@@ -99,6 +108,12 @@ void (async () => {
 - `getWishlistItems()`: ウィッシュリスト内のすべてのアイテムを取得します。
 - `clearWishlist()`: ウィッシュリストをクリアします。
 - `removeFromWishlist(productId: number)`: 商品IDでウィッシュリストから商品を削除します。
+
+## 既知の制限事項
+
+このSDKはBooth.pmの公開HTMLをスクレイピングしているため、サイト側のマークアップ変更によって壊れる可能性があります。
+
+- 年齢確認の壁（成人向けコンテンツ）が出た場合、`listProducts`/`find`はエラーを投げます。ただし、`listProducts`/`find`の一覧結果に含まれる各商品の`isAdult`フラグ（一覧表示のバッジ由来）は、年齢確認済みセッション下でのみ検証されており、未検証です。確実な判定が必要な場合は`getProduct`が返す`isAdult`（API由来の値）を利用してください。
 
 ## ライセンス
 

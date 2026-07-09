@@ -73,15 +73,25 @@ Output :
   liked: 10415,
   downloadable: [
     {
-      file_name: 'Pastel_Balayage_Color_Hair_Texture',
-      file_extension: '.zip',
-      file_size: '3.92 MB',
+      fileName: 'Pastel_Balayage_Color_Hair_Texture',
+      fileExtension: '.zip',
+      fileSize: '3.92 MB',
       name: 'Pastel_Balayage_Color_Hair_Texture.zip',
       url: 'https://booth.pm/downloadables/2336025'
     }
   ]
 };
 ```
+
+## Config
+
+- `lang`: `'en' | 'ja'`. Required.
+- `cookies`: `Record<string, string>` (optional). Not needed for regular browsing; use it if you need to send your own cookies with every request (e.g. an age-verified session).
+
+```jsx
+const booth = new BoothSDK({ lang: 'en', cookies: { my_cookie: 'value' } });
+```
+
 # API Reference
 
 ## Product
@@ -98,6 +108,12 @@ Output :
 - `getWishlistItems()`: Retrieves all items in the wishlist.
 - `clearWishlist()`: Clears the wishlist.
 - `removeFromWishlist(productId: number)`: Removes a product from the wishlist by its product ID.
+
+## Known limitations
+
+This SDK scrapes Booth.pm's public HTML, so it can break whenever the site changes its markup.
+
+- `listProducts`/`find` throw when they hit the age-verification wall for adult content. That said, the per-item `isAdult` flag on listing/search results (read from a badge in the card markup) could not be verified against real adult content, since unauthenticated requests always hit that wall. For a value you can trust, use the `isAdult` returned by `getProduct` (read directly from Booth's product API) instead.
 
 ## License
 
