@@ -3,7 +3,7 @@
 <p>Japanese version <a href="readme.md">here</a></p>
 
 
-<img src="banner.jpg">
+<img src="https://raw.githubusercontent.com/thisoverride/BoothPM-SDK/main/banner.jpg">
 
 Booth SDK is a web scraping tool designed to extract various product information from the popular e-commerce platform <a href="[https://booth.pm](https://booth.pm/)">Booth.pm</a>. It allows you to obtain detailed information about all free and paid products available on the site and also enables the download of free products.
 

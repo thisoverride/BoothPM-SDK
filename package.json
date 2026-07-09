@@ -1,7 +1,15 @@
 {
   "name": "booth-pm-sdk",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thisoverride/BoothPM-SDK.git"
+  },
+  "homepage": "https://github.com/thisoverride/BoothPM-SDK#readme",
+  "bugs": {
+    "url": "https://github.com/thisoverride/BoothPM-SDK/issues"
+  },
   "main": "./lib/boothSdk.js",
   "module": "./lib/boothSdk.mjs",
   "types": "./lib/boothSdk.d.ts",

@@ -2,7 +2,7 @@
 
 <p>English version <a href="readme-en.md">Here</a></p>
 
-<img src="banner.jpg">
+<img src="https://raw.githubusercontent.com/thisoverride/BoothPM-SDK/main/banner.jpg">
 
 Booth SDKは、人気のあるeコマースプラットフォーム<a href="[https://booth.pm](https://booth.pm/)">Booth.pm</a>からさまざまな商品情報を抽出するためのウェブスクレイピングツールです。サイト上のすべての無料および有料商品の詳細情報を取得でき、無料商品のダウンロードも可能です。
 
